@@ -10,7 +10,7 @@ Internal Design Notes: Public API Standardization for Korean Exchanges
 
 | Step | Description |
 |------|------|
-| **Define normalized schema** | Symbol format `{BASE}-{QUOTE}` (e.g., BTC-KRW), candle fields `timestamp`(ms), open, high, low, close, volume, trade_value, and UTC-ms timestamp policy. |
+| **Define normalized schema** | Symbol format `{BASE}-{QUOTE}` (e.g., BTC-KRW), required candle fields `open_time_ms`, `close_time_ms`, `open`, `high`, `low`, `close`, `volume_base`, `ingestion_time_ms`, optional `volume_quote`, `trade_count`, all in UTC-ms time policy. |
 | **Create guide documentation** | Organized per-exchange **pair-list API, candle API, symbol conversion rules, base URL, and rate limits** using tables and blocks. |
 
 Because exchanges differ in URL, params, and response structure, the guide includes both **conversion rules for normalized usage** and **interval-specific endpoints, candle shape mapping, pagination, and 429 handling**.
@@ -21,12 +21,12 @@ Because exchanges differ in URL, params, and response structure, the guide inclu
 
 ### 2.1 Guide document
 
-- **§1 User decisions**: finalized normalized symbol, trade_value, timestamp policy, and supported interval range.
+- **§1 User decisions**: finalized normalized symbol, candle time policy (`open_time_ms`/`close_time_ms`), schema-required fields, and supported interval range.
 - **§2 Exchange symbol -> normalized conversion**: completed for all 5 exchanges (API examples + conversion rules).
 - **§4 Base URL and symbol format comparison**: completed for all 5 exchanges.
 - **§5 Pair-list API**: completed method/path, params, response path, symbol extraction, filters (KRW, etc.), and success criteria for all exchanges.
 - **§6.1 Supported interval summary**: completed supported intervals (1m to 1d, etc.) and notes for all exchanges.
-- **§6.2 Common candle items**: completed method/path, symbol location, time params, pagination, limits/ranges, response path, candle structure, normalized mapping, timestamp/trade-value/sort/429 handling for all exchanges.
+- **§6.2 Common candle items**: completed method/path, symbol location, time params, pagination, limits/ranges, response path, candle structure, normalized field mapping (`open_time_ms`, `close_time_ms`, `volume_base`, `volume_quote`, `trade_count`), sort/429 handling for all exchanges.
 - **§6.3 Per-interval details**: detailed candle blocks added for Upbit, Bithumb, Coinone, Korbit, and GOPAX.
 - **§7 Exceptions and limits**: completed rate limits, 429 behavior, and remaining-quota headers for all exchanges. **No remaining placeholders.**
 

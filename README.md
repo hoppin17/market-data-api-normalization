@@ -18,14 +18,15 @@ Documentation-driven market data API normalization framework for Korean cryptocu
 
 ## Core Rules
 - Symbol format: `{BASE}-{QUOTE}`
-- Timestamp: UTC milliseconds
-- Canonical candle time: candle open time
-- `trade_value`: exchange-provided value if available, else `close * volume`
+- Candle time fields: `open_time_ms` and `close_time_ms` (UTC milliseconds)
+- Canonical candle time basis: candle open time
+- Volume fields: required `volume_base`, optional `volume_quote`
+- Optional market activity field: `trade_count`
 
 ## Docs Structure
 - `docs/en/`: English public documentation
 - `docs/ko/`: Korean public documentation
-- `docs/internal/`: internal design notes and mixed-source records
+- `docs/internal/`: internal design notes
 
 ## Key Documents
 - English public guide: `docs/en/market-data-api-normalization-korean-exchanges.md`

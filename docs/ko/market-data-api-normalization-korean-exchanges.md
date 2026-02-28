@@ -21,9 +21,9 @@
 ## 1. 사용자 결정 사항 (확정)
 
 - **정규 심볼 형식**: `{BASE}-{QUOTE}` (거래 대상이 앞, 거래 단위가 뒤). 예: `BTC-KRW`. 대소문자 구분 없음.
-- **trade_value 정책**: 기본은 `close * volume`. API에서 거래대금을 제공하면 그 값을 사용. 사용자 설정으로 `open` 등 다른 가격으로 계산하도록 변경 가능하게 둠.
-- **timestamp**: UTC, 단위 **ms**.
-- **정규 timestamp 기준**: 모든 거래소 캔들은 **캔들 시작 시각 (candle open time)** 을 기준으로 UTC ms로 통일한다.
+- **정규 캔들 필드**: `open_time_ms`, `close_time_ms`, `open`, `high`, `low`, `close`, `volume_base`, `ingestion_time_ms`(필수), `volume_quote`, `trade_count`(선택).
+- **시간 정책**: UTC, 단위 **ms**, 기준은 캔들 시작 시각(candle open time).
+- **종료 시각 정책**: 원본에 종료 시각이 없으면 `open_time_ms + interval_ms - 1`로 계산.
 - **지원 캔들 주기**: 1m ~ 1d 범위에서, **거래소별로** 지원하는 주기와 **주기별 요청 방식**(URL·params 차이)을 아래 표에 채움.
 
 ---
@@ -52,11 +52,10 @@
 
 ### 3.2 캔들 한 봉
 
-- **필드**: `timestamp`(ms), `open`, `high`, `low`, `close`, `volume`, `trade_value`
-- **trade_value**: API 제공 시 해당 값 사용, 없으면 `close * volume` (설정으로 `open` 등 대체 가능).
-- trade_value가 제공되지 않는 경우 `close * volume`으로 정의하며,
-- 캔들 종가 기준의 교차 거래소 비교 일관성을 확보하기 위함입니다.
-- **타입**: `timestamp` 정수(ms), 나머지 float. 모든 시각 UTC 기준.
+- **필수 필드**: `exchange`, `symbol`, `interval`, `open_time_ms`, `close_time_ms`, `open`, `high`, `low`, `close`, `volume_base`, `ingestion_time_ms`
+- **선택 필드**: `volume_quote`, `trade_count`
+- **매핑 정책**: 거래소의 거래대금 계열 필드(예: `candle_acc_trade_price`, `quote_volume`)가 있으면 `volume_quote`로 매핑.
+- **타입**: 시간 필드는 정수(ms), OHLC·거래량은 float, `trade_count`는 integer 또는 null. 모든 시각 UTC 기준.
 
 
 ---
@@ -114,7 +113,9 @@
 | 요청당 최대 / 구간 제한 | 최대 200개/요청. 문서상 구간 상한 별도 명시 없음. | 최대 200개/요청. 문서상 구간 상한 별도 명시 없음. | 최대 500개/요청(`size`). 문서상 구간 상한 별도 명시 없음. | 최대 200개/요청(`limit`). `start`·`end`로 구간 제한. | 최대 1024개/요청(`limit`, 기본 1024). `start`·`end` 필수로 구간 지정. |
 | 응답 배열 경로 | 루트가 배열 (array of objects) | 루트가 배열 (array of objects) | 루트 객체의 `chart` 배열 (array of objects) | 루트 객체의 `data` 배열 (array of objects) | 루트가 배열 (array of arrays). 각 봉이 배열. |
 | 한 봉 구조(필드/인덱스) | `market`, `candle_date_time_utc`, `candle_date_time_kst`, `opening_price`, `high_price`, `low_price`, `trade_price`, `timestamp`(ms), `candle_acc_trade_price`, `candle_acc_trade_volume`, `unit`(분캔들만). 일캔들 추가: `prev_closing_price`, `change_price`, `change_rate`, (선택)`converted_trade_price`. | 업비트와 동일. `market`, `candle_date_time_utc`, `candle_date_time_kst`, `opening_price`, `high_price`, `low_price`, `trade_price`, `timestamp`(ms, **캔들 종료 시각 KST**), `candle_acc_trade_price`, `candle_acc_trade_volume`, `unit`(분캔들만). 일캔들 추가: `prev_closing_price`, `change_price`, `change_rate`, (선택)`converted_trade_price`. | `timestamp`(ms), `open`, `high`, `low`, `close`, `target_volume`(종목 거래량), `quote_volume`(원화 거래 금액). 모두 UTC ms·NumberString. | `timestamp`(ms, 캔들 시작 시각), `open`, `high`, `low`, `close`, `volume`. 거래대금 미제공 → `close*volume` 사용. | 배열 6개 요소: `[0]` timestamp(ms, 구간 시작), `[1]` low, `[2]` high, `[3]` open, `[4]` close, `[5]` volume(base 자산). 거래대금 미제공. |
-| 정규 필드 매핑 | `timestamp` → 캔들 **시작 시각** UTC ms로 통일 시 `candle_date_time_utc` 파싱 권장(API의 `timestamp`는 마지막 틱 시각). `opening_price`→open, `high_price`→high, `low_price`→low, `trade_price`→close, `candle_acc_trade_volume`→volume, `candle_acc_trade_price`→trade_value. | 정규 timestamp는 UTC ms이므로 `candle_date_time_utc` 파싱 권장(API의 `timestamp`는 캔들 종료 시각 KST). 나머지 매핑 동일: opening_price→open, high_price→high, low_price→low, trade_price→close, candle_acc_trade_volume→volume, candle_acc_trade_price→trade_value. | `timestamp`→timestamp(UTC ms, 캔들 시각). `open`→open, `high`→high, `low`→low, `close`→close, `target_volume`→volume, `quote_volume`→trade_value. | `timestamp`→timestamp(ms). `open`→open, `high`→high, `low`→low, `close`→close, `volume`→volume. trade_value 미제공 → close*volume. 문서상 시각 기준(UTC/KST) 미명시 시 확인 권장. | `[0]`→timestamp, `[1]`→low, `[2]`→high, `[3]`→open, `[4]`→close, `[5]`→volume. trade_value 미제공 → close*volume. 문서상 시각(UTC/KST) 미명시 시 확인 권장. |
+| 정규 필드 매핑 | `open/high/low/close` <- `opening_price/high_price/low_price/trade_price`; `volume_base` <- `candle_acc_trade_volume`; `volume_quote` <- `candle_acc_trade_price`; `trade_count` <- `null` | 동일 (`timestamp`는 KST 종료시각이므로 정규 시간에는 직접 미사용) | `open/high/low/close` <- `open/high/low/close`; `volume_base` <- `target_volume`; `volume_quote` <- `quote_volume`; `trade_count` <- `null` | `open/high/low/close` <- `open/high/low/close`; `volume_base` <- `volume`; `volume_quote` <- `null`; `trade_count` <- `null` | `open/high/low/close` <- `[3]/[2]/[1]/[4]`; `volume_base` <- `[5]`; `volume_quote` <- `null`; `trade_count` <- `null` |
+| 정규 시간 매핑 | `open_time_ms` <- `candle_date_time_utc` 파싱; `close_time_ms` <- `open_time_ms + interval_ms - 1` | 동일 (`timestamp` 필드는 KST 종료시각 참고용) | `open_time_ms` <- `timestamp`; `close_time_ms` <- `open_time_ms + interval_ms - 1` | `open_time_ms` <- `timestamp`(UTC 미명시 시 UTC 가정); `close_time_ms` 계산 | `open_time_ms` <- `[0]`(UTC 미명시 시 UTC 가정); `close_time_ms` 계산 |
+| volume_quote 제공 여부 | 제공 (`candle_acc_trade_price`) | 제공 (`candle_acc_trade_price`) | 제공 (`quote_volume`) | 미제공 (`null`) | 미제공 (`null`) |
 | 타임스탬프 단위 | ms. `candle_date_time_utc`: 캔들 구간 시작(UTC). `timestamp`: 해당 봉 마지막 틱 저장 시각(ms). | ms. `candle_date_time_utc`: 캔들 구간 시작(UTC). `candle_date_time_kst`: 캔들 구간 시작(KST). `timestamp`: 캔들 **종료** 시각(KST 기준) ms. | ms, **UTC**. 요청 `timestamp`·응답 `timestamp` 모두 Unix time ms. | ms. 문서상 "캔들 시작 시각(timestamp)". 시간대가 명시되지 않은 경우 UTC로 가정한다 (Assumed UTC unless documented otherwise). | ms. 문서상 "구간 시작 시간". 시간대가 명시되지 않은 경우 UTC로 가정한다 (Assumed UTC unless documented otherwise). |
 | 거래대금(API 제공 여부) | 제공. `candle_acc_trade_price` (누적 거래 금액) | 제공. `candle_acc_trade_price` (누적 거래 금액) | 제공. `quote_volume` (해당 종목 원화 거래 금액) | 미제공. 정책에 따라 `close * volume` 사용. | 미제공. 정책에 따라 `close * volume` 사용. |
 | 정렬 방향 | 최신순 (지정한 `to` 이전 캔들) | 최신순 (지정한 `to` 이전 캔들) | 최신순. `timestamp` 미지정 시 최근 캔들부터, 지정 시 해당 시각 이전 캔들. | 과거→최신 순(오름차순). `start`·`end` 미지정 시 상장 시점~현재. | 과거→최신 순. start~end 구간 내. |
@@ -142,7 +143,7 @@
 | **Path param** | `unit`: 1, 3, 5, 10, 15, 30, 60, 240 (분) | — |
 | **Query** | `market`(필수), `to`(선택, KST 기준 ISO 8601), `count`(선택, 기본 1, 최대 200) | 동일 + `convertingPriceUnit`(선택, KRW 시 원화 환산 종가 `converted_trade_price` 반환) |
 | **응답** | 배열. 각 봉: 업비트와 동일 필드. `timestamp`는 캔들 종료 시각(KST) ms. | 위와 동일 + `prev_closing_price`, `change_price`, `change_rate`, (선택)`converted_trade_price` |
-| **비고** | `to` 기본 KST. 정규 timestamp는 `candle_date_time_utc` 파싱해 UTC ms 사용 권장. | 일캔들 UTC 0시 기준. |
+| **비고** | `to` 기본 KST. 정규 시간은 `open_time_ms` 기준이므로 `candle_date_time_utc` 파싱 사용 권장. | 일캔들 UTC 0시 기준. |
 
 #### 코인원 캔들 상세
 
@@ -161,7 +162,7 @@
 | **URL** | `GET /v2/candles` (모든 주기 공통) |
 | **Query** | `symbol`(필수, 예: btc_krw). `interval`(필수): 1, 5, 15, 30, 60, 240, 1D, 1W. `start`(선택, ms): 조회 시작 시각. 미지정 시 상장 시점부터. `end`(선택, ms): 조회 종료 시각(start보다 커야 함). 미지정 시 현재까지. `limit`(필수, 1~200): 조회 건수. |
 | **응답** | 루트 객체. `success`, `data`(배열). 각 봉: `timestamp`, `open`, `high`, `low`, `close`, `volume`. 거래대금 미제공. |
-| **비고** | 응답은 과거→최신 순(오름차순). 정규 timestamp는 UTC ms 가정 시 문서상 UTC/KST 확인 권장. trade_value는 close*volume. |
+| **비고** | 응답은 과거→최신 순(오름차순). 정규 시간은 `open_time_ms`(UTC 가정) 기준으로 매핑하고 `close_time_ms`를 파생 계산. `volume_quote`는 미제공(`null`). |
 
 #### 고팩스 캔들 상세
 
@@ -170,7 +171,7 @@
 | **URL** | `GET /trading-pairs/{TradingPair}/candles` (path에 심볼 예: BTC-KRW) |
 | **Query** | `start`(필수, ms): 시작 시각. `end`(필수, ms): 종료 시각. `interval`(필수): 1, 5, 30, 1440(분). `limit`(선택, 기본 1024, 최대 1024) |
 | **응답** | 루트가 배열. 각 봉은 **배열 6개**: `[timestamp(구간 시작 ms), low, high, open, close, volume]`. volume은 base 자산 단위. 거래대금 미제공. |
-| **비고** | 응답 봉 순서가 low→high→open→close 이므로 인덱스 [1]low, [2]high, [3]open, [4]close, [5]volume 매핑 필요. trade_value는 close*volume. |
+| **비고** | 응답 봉 순서가 low→high→open→close 이므로 인덱스 [1]low, [2]high, [3]open, [4]close, [5]volume 매핑 필요. `volume_quote`는 미제공(`null`). |
 
 ---
 

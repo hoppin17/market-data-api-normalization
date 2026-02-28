@@ -10,7 +10,7 @@
 
 | 단계 | 내용 |
 |------|------|
-| **정규 스키마 정의** | 심볼 `{BASE}-{QUOTE}`(예: BTC-KRW), 캔들 필드 `timestamp`(ms)·open·high·low·close·volume·trade_value, timestamp UTC ms로 통일. |
+| **정규 스키마 정의** | 심볼 `{BASE}-{QUOTE}`(예: BTC-KRW), 필수 캔들 필드 `open_time_ms`·`close_time_ms`·open·high·low·close·`volume_base`·`ingestion_time_ms`, 선택 필드 `volume_quote`·`trade_count`, 시간은 UTC ms로 통일. |
 | **가이드 문서 작성** | 5거래소별로 **페어 목록 API·캔들 API·심볼 변환 규칙·Base URL·Rate limit**을 표와 블록으로 정리. |
 
 거래소마다 URL·params·응답 형식이 다르므로, 가이드에는 **정규 형식으로 쓰기 위한 변환 규칙**과 **주기별 엔드포인트·한 봉 구조·페이징·429 대응**을 모두 적어 두었습니다.
@@ -21,12 +21,12 @@
 
 ### 2.1 가이드 문서
 
-- **§1 사용자 결정 사항**: 정규 심볼·trade_value·timestamp·지원 주기 범위 확정.
+- **§1 사용자 결정 사항**: 정규 심볼·캔들 시간 정책(`open_time_ms`/`close_time_ms`)·필수 스키마 필드·지원 주기 범위 확정.
 - **§2 거래소별 심볼 → 정규 형식 변환**: 5거래소 모두 채움 (API 반환 예시 + 변환 규칙).
 - **§4 Base URL·심볼 형식 비교**: 5거래소 Base URL, 마켓 목록 반환 형식, 캔들 요청 시 심볼 형식 채움.
 - **§5 페어 목록 API**: 5거래소 Method+경로, params, 응답 경로, 심볼 추출, 필터(KRW 등), 성공 판별 채움.
 - **§6.1 지원 주기 요약**: 5거래소 지원 주기(1m~1d 등) 및 비고 채움.
-- **§6.2 캔들 공통 항목**: 5거래소 Method+경로, 심볼 넣는 곳, 시간 params, 페이징, 최대/구간, 응답 경로, 한 봉 구조, 정규 매핑, 타임스탬프·거래대금·정렬·429 대응 채움.
+- **§6.2 캔들 공통 항목**: 5거래소 Method+경로, 심볼 넣는 곳, 시간 params, 페이징, 최대/구간, 응답 경로, 한 봉 구조, 정규 매핑(`open_time_ms`, `close_time_ms`, `volume_base`, `volume_quote`, `trade_count`), 정렬·429 대응 채움.
 - **§6.3 주기별 상세**: 업비트·빗썸·코인원·코빗·고팍스 각각 캔들 상세 블록 추가됨.
 - **§7 예외·제한**: 5거래소 Rate limit·429·잔량 헤더 등 모두 채움. **(채우기) 없음.**
 

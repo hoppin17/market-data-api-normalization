@@ -5,7 +5,7 @@ Market Data API Normalization for Korean Exchanges
 Korean exchanges expose heterogeneous public APIs with inconsistent:
 - Symbol formats (BASE-QUOTE vs QUOTE-BASE)
 - Timestamp semantics (UTC vs KST, start vs end time)
-- Trade value definitions
+- Quote-volume / trade-amount field definitions
 - Rate limit policies
 
 Without normalization, cross-exchange analytics requires repetitive, exchange-specific preprocessing.
@@ -20,9 +20,9 @@ Different request params and response formats are normalized into the schema bel
 ## 1. User Decisions (Final)
 
 - **Normalized symbol format**: `{BASE}-{QUOTE}` (traded asset first, quote currency second). Example: `BTC-KRW`. Case-insensitive.
-- **trade_value policy**: default is `close * volume`. If API provides trade amount, use that value. Allow configurable fallback price (`open`, etc.) for calculation.
-- **timestamp**: UTC, unit **ms**.
-- **Normalized timestamp basis**: all exchange candles are standardized to **candle open time** in UTC ms.
+- **Normalized candle fields**: `open_time_ms`, `close_time_ms`, `open`, `high`, `low`, `close`, `volume_base`, `ingestion_time_ms` (required), with `volume_quote`, `trade_count` as optional.
+- **time policy**: UTC, unit **ms**, canonical basis is candle open time.
+- **close time policy**: if source close time is missing, derive with `open_time_ms + interval_ms - 1`.
 - **Supported candle intervals**: in the 1m to 1d range, fill in supported intervals and per-interval request method (URL/params differences) by exchange.
 
 ---
@@ -53,10 +53,10 @@ Unless explicitly documented otherwise, timestamps are assumed to be UTC.
 
 ### 3.2 Single Candle
 
-- **Fields**: `timestamp`(ms), `open`, `high`, `low`, `close`, `volume`, `trade_value`
-- **trade_value**: use API-provided trade amount when available; otherwise `close * volume` (configurable fallback allowed).
-- This default keeps cross-exchange comparison consistent with candle close price.
-- **Types**: `timestamp` is integer (ms), others are float. Time is UTC.
+- **Required fields**: `exchange`, `symbol`, `interval`, `open_time_ms`, `close_time_ms`, `open`, `high`, `low`, `close`, `volume_base`, `ingestion_time_ms`
+- **Optional fields**: `volume_quote`, `trade_count`
+- **Mapping policy**: exchange trade amount fields (for example, `candle_acc_trade_price`, `quote_volume`) are mapped to `volume_quote` when present.
+- **Types**: time fields are integer (ms), OHLC and volume are float, `trade_count` is integer or null. Time is UTC.
 
 ---
 
@@ -105,9 +105,9 @@ Unless explicitly documented otherwise, timestamps are assumed to be UTC.
 | Symbol location | query `market=KRW-BTC` | query `market=KRW-BTC` | path `quote/target` | query `symbol=btc_krw` | path `TradingPair=BTC-KRW` |
 | Time params | `to` (optional ISO), `count`(max 200) | same, `to` interpreted in KST by default | `interval` required, optional `timestamp` UTC ms, `size` up to 500 | `interval` required, optional `start/end`, required `limit` up to 200 | required `start/end/interval`, optional `limit` up to 1024 |
 | Response list path | root array | root array | `chart` array | `data` array | root array of arrays |
-| Candle mapping | `opening_price/high_price/low_price/trade_price`, `candle_acc_trade_volume`, `candle_acc_trade_price` | same | `open/high/low/close`, `target_volume`, `quote_volume` | `open/high/low/close/volume`; trade value missing | `[1]low [2]high [3]open [4]close [5]volume`; trade value missing |
-| Normalized timestamp | parse `candle_date_time_utc` as candle open UTC ms (`timestamp` is last tick time) | parse `candle_date_time_utc` as candle open UTC ms (`timestamp` is KST candle end) | use `timestamp` directly (UTC ms) | use `timestamp` (assume UTC if undocumented) | use `[0]` (assume UTC if undocumented) |
-| Trade value | provided (`candle_acc_trade_price`) | provided (`candle_acc_trade_price`) | provided (`quote_volume`) | compute `close * volume` | compute `close * volume` |
+| Candle mapping | `open/high/low/close` <- `opening_price/high_price/low_price/trade_price`; `volume_base` <- `candle_acc_trade_volume`; `volume_quote` <- `candle_acc_trade_price`; `trade_count` <- `null` | same | `open/high/low/close` <- `open/high/low/close`; `volume_base` <- `target_volume`; `volume_quote` <- `quote_volume`; `trade_count` <- `null` | `open/high/low/close` <- `open/high/low/close`; `volume_base` <- `volume`; `volume_quote` <- `null`; `trade_count` <- `null` | `open/high/low/close` <- `[3]/[2]/[1]/[4]`; `volume_base` <- `[5]`; `volume_quote` <- `null`; `trade_count` <- `null` |
+| Normalized time mapping | `open_time_ms` <- parse `candle_date_time_utc`; `close_time_ms` <- `open_time_ms + interval_ms - 1` | same (`timestamp` in payload is KST candle end) | `open_time_ms` <- `timestamp`; `close_time_ms` <- `open_time_ms + interval_ms - 1` | `open_time_ms` <- `timestamp` (assume UTC if undocumented); derive `close_time_ms` | `open_time_ms` <- `[0]` (assume UTC if undocumented); derive `close_time_ms` |
+| volume_quote availability | provided (`candle_acc_trade_price`) | provided (`candle_acc_trade_price`) | provided (`quote_volume`) | not provided (`null`) | not provided (`null`) |
 | Sort order | newest first | newest first | newest first | oldest first | oldest first |
 | 429/rate limit handling | candle group 10 req/s | public 150 req/s | 1200 req/min, check `Public-Ratelimit-Remaining` | 50 req/s, check `Ratelimit` headers | 20 req/s IP, check `x-gopax-*weight` headers |
 
