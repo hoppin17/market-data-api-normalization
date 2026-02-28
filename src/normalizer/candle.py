@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 import json
 import re
 from datetime import datetime, timezone
@@ -7,7 +8,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 SYMBOL_PATTERN = re.compile(r"^[A-Z0-9]+-[A-Z0-9]+$")
-INTERVAL_PATTERN = re.compile(r"^([1-9][0-9]*)(m|h|d|w)$")
+INTERVAL_PATTERN = re.compile(r"^([1-9][0-9]*)(mon|m|h|d|w)$")
 
 
 def normalize_symbol(raw_symbol: str) -> str:
@@ -55,8 +56,20 @@ def interval_to_ms(interval: str) -> int:
         raise ValueError(f"Invalid interval: {interval}")
     amount = int(match.group(1))
     unit = match.group(2)
+    if unit == "mon":
+        raise ValueError("Use month-aware close-time derivation for 'mon' intervals")
     unit_ms = {"m": 60_000, "h": 3_600_000, "d": 86_400_000, "w": 604_800_000}
     return amount * unit_ms[unit]
+
+
+def _add_calendar_months_ms(open_time_ms: int, months: int) -> int:
+    dt = datetime.fromtimestamp(open_time_ms / 1000, tz=timezone.utc)
+    month_index = dt.month - 1 + months
+    year = dt.year + month_index // 12
+    month = month_index % 12 + 1
+    day = min(dt.day, calendar.monthrange(year, month)[1])
+    target = dt.replace(year=year, month=month, day=day)
+    return int(target.timestamp() * 1000)
 
 
 def _first(data: Mapping[str, Any], keys: tuple[str, ...], required: bool = True) -> Any:
@@ -77,13 +90,21 @@ def normalize_candle(
     ingestion_time_ms: int | None = None,
 ) -> dict[str, Any]:
     normalized_symbol = normalize_symbol(symbol)
-    interval_ms = interval_to_ms(interval)
+    interval_match = INTERVAL_PATTERN.fullmatch(interval)
+    if not interval_match:
+        raise ValueError(f"Invalid interval: {interval}")
+    interval_amount = int(interval_match.group(1))
+    interval_unit = interval_match.group(2)
+
     open_time_ms = to_utc_ms(
         _first(raw, ("open_time", "openTime", "timestamp", "t")), source_time_unit
     )
     close_time_raw = _first(raw, ("close_time", "closeTime", "T"), required=False)
     if close_time_raw is None:
-        close_time_ms = open_time_ms + interval_ms - 1
+        if interval_unit == "mon":
+            close_time_ms = _add_calendar_months_ms(open_time_ms, interval_amount) - 1
+        else:
+            close_time_ms = open_time_ms + interval_to_ms(interval) - 1
     else:
         close_time_ms = to_utc_ms(close_time_raw, source_time_unit)
 

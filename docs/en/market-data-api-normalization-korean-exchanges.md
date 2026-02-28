@@ -22,7 +22,7 @@ Different request params and response formats are normalized into the schema bel
 - **Normalized symbol format**: `{BASE}-{QUOTE}` (traded asset first, quote currency second). Example: `BTC-KRW`. Case-insensitive.
 - **Normalized candle fields**: `open_time_ms`, `close_time_ms`, `open`, `high`, `low`, `close`, `volume_base`, `ingestion_time_ms` (required), with `volume_quote`, `trade_count` as optional.
 - **time policy**: UTC, unit **ms**, canonical basis is candle open time.
-- **close time policy**: if source close time is missing, derive with `open_time_ms + interval_ms - 1`.
+- **close time policy**: if source close time is missing, derive with `open_time_ms + interval_ms - 1`; for `mon`, derive by calendar-month rollover in UTC and subtract 1ms.
 - **Supported candle intervals**: in the 1m to 1d range, fill in supported intervals and per-interval request method (URL/params differences) by exchange.
 
 ---

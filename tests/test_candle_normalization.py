@@ -48,6 +48,22 @@ def test_normalize_candle_and_schema_validation():
     validate_candle_against_schema(candle, SCHEMA_PATH)
 
 
+def test_normalize_candle_month_interval():
+    raw = {
+        "openTime": 1704067200000,  # 2024-01-01T00:00:00Z
+        "o": "100.0",
+        "h": "110.0",
+        "l": "95.0",
+        "c": "105.0",
+        "v": "12.5",
+    }
+    candle = normalize_candle("coinone", "btc/krw", "1mon", raw, source_time_unit="ms")
+    assert candle["open_time_ms"] == 1704067200000
+    # 2024-02-01T00:00:00Z - 1ms
+    assert candle["close_time_ms"] == 1706745599999
+    validate_candle_against_schema(candle, SCHEMA_PATH)
+
+
 def test_schema_rejects_invalid_symbol():
     invalid_candle = {
         "exchange": "binance",

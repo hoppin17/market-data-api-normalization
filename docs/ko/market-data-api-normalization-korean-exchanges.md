@@ -23,7 +23,7 @@
 - **정규 심볼 형식**: `{BASE}-{QUOTE}` (거래 대상이 앞, 거래 단위가 뒤). 예: `BTC-KRW`. 대소문자 구분 없음.
 - **정규 캔들 필드**: `open_time_ms`, `close_time_ms`, `open`, `high`, `low`, `close`, `volume_base`, `ingestion_time_ms`(필수), `volume_quote`, `trade_count`(선택).
 - **시간 정책**: UTC, 단위 **ms**, 기준은 캔들 시작 시각(candle open time).
-- **종료 시각 정책**: 원본에 종료 시각이 없으면 `open_time_ms + interval_ms - 1`로 계산.
+- **종료 시각 정책**: 원본에 종료 시각이 없으면 `open_time_ms + interval_ms - 1`로 계산하고, `mon`은 UTC 기준 달력 월 증가 후 1ms를 빼서 계산.
 - **지원 캔들 주기**: 1m ~ 1d 범위에서, **거래소별로** 지원하는 주기와 **주기별 요청 방식**(URL·params 차이)을 아래 표에 채움.
 
 ---
