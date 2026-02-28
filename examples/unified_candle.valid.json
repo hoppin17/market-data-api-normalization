@@ -1,0 +1,15 @@
+{
+  "exchange": "binance",
+  "symbol": "BTC-USDT",
+  "interval": "1m",
+  "open_time_ms": 1736384400000,
+  "close_time_ms": 1736384459999,
+  "open": 94500.1,
+  "high": 94520.7,
+  "low": 94480.0,
+  "close": 94510.3,
+  "volume_base": 12.34,
+  "volume_quote": 1166250.2,
+  "trade_count": 452,
+  "ingestion_time_ms": 1736384460200
+}
